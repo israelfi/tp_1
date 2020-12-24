@@ -6,7 +6,7 @@ Este trabalho consiste na implementação de quatro algoritmos:
 
 2. Implementar um controlador que faça um robô com acionamento diferencial convergir e circular eternamente uma curva em forma de oito(Lemniscata de Bernoulli). Os parâmetros da curvadevem ser parâmetros de entrada do programa.
 
-<div style="text-align:center"><img src="https://github.com/israelfi/tp_1/blob/master/media/Peek%202020-12-24%2001-16.gif" width="400" height="400" />
+<div style="text-align:center"><img src="https://github.com/israelfi/tp_1/blob/master/media/Peek%202020-12-24%2001-16.gif" width="400" height="400" /></div>
 
 3. Implementar uma estratégia simples de função de potencial (Potencial Atrativo + Potencial Repulsivo) para navegar o  robô entre  duas  posições  quaisquer  num  ambiente com obstáculos.
 
