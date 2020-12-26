@@ -7,6 +7,7 @@ from tf.transformations import euler_from_quaternion
 from math import cos, sin, pi
 
 d = 0.2
+samples = 270
 
 def callback_pose(data):
     """
@@ -29,12 +30,19 @@ def callback_pose(data):
 
 
 def callback_laser(data):
+    global samples
     laser = data.ranges
+    intensities = data.intensities
     i = 1
+    angulo_grau = 0
+    grad_obs = [0, 0]
     while i < 269:
         # print i, laser [i+1], len(laser)
-        if (laser[i] < laser [i-1]) and (laser[i] < laser[i+1]):
-            print "Posicao", i, "-", laser[i], ": sou um minimo local"
+        if (laser[i] < laser [i-1]) and (laser[i] < laser[i+1]) and (intensities[i] == 1.0):
+            # print "Posicao", i, "\t-", round(laser[i], 3), "\t: sou um minimo local | [", round(laser[i-1], 3), \
+            #  round(laser[i], 3), round(laser[i+1], 3), "]"
+            angulo_grau = i - samples/2
+            print angulo_grau, angulo_grau * pi / 180.
         i += 1
 
 
