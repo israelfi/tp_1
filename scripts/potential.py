@@ -30,24 +30,51 @@ def callback_pose(data):
 
 
 def callback_laser(data):
-    global samples
+    global laser, intensities
+    
     laser = data.ranges
     intensities = data.intensities
+
+    return
+
+
+def potential():
+    global laser, intensities
+    global x_n, y_n, theta_n
+
+    alfa = 5.0
     i = 1
     angulo_grau = 0
-    grad_obs = [0, 0]
+    grad_obs = [0, 0] # Gradiente (x, y)
+    
+    # Posicao do Obstaculo
+    pos_obs = [0, 0]
+
     while i < 269:
-        # print i, laser [i+1], len(laser)
         if (laser[i] < laser [i-1]) and (laser[i] < laser[i+1]) and (intensities[i] == 1.0):
-            # print "Posicao", i, "\t-", round(laser[i], 3), "\t: sou um minimo local | [", round(laser[i-1], 3), \
-            #  round(laser[i], 3), round(laser[i+1], 3), "]"
             angulo_grau = i - samples/2
-            print angulo_grau, angulo_grau * pi / 180.
+            angulo_rad = angulo_grau * pi / 180.
+
+            grad_obs[0] += - cos(angulo_rad + theta_n) / (laser[i] ** 2)
+            grad_obs[1] += - sin(angulo_rad + theta_n) / (laser[i] ** 2)
+
+            pos_obs[0] = [x_n + laser[i]*cos(angulo_rad + theta_n)]
+            pos_obs[1] = [y_n + laser[i]*sin(angulo_rad + theta_n)]
+
         i += 1
+
+    grad_obs[0] = alfa * grad_obs[0]
+    grad_obs[1] = alfa * grad_obs[1]
+
+    # print grad_obs
+
+    return grad_obs
+
+    
 
 
 # Sinais de controle
-def control(pos, vel):
+def control(pos):
     """
     Entradas:
     pos: Vetor contendo a posicao planar do robo
@@ -59,10 +86,12 @@ def control(pos, vel):
     """
 
     global x_n, y_n
-    k = 1
+    global x_goal, y_goal
 
-    Ux = k * (pos[0] - x_n) + vel[0]
-    Uy = k * (pos[1] - y_n) + vel[1]
+    k = 1.
+
+    Ux = k * (x_goal + pos[0] - x_n) 
+    Uy = k * (y_goal + pos[1] - y_n)
 
     # print "Control: ", round(Ux, 2), round(Uy, 2)
 
@@ -95,7 +124,7 @@ def controller():
     Rotina primaria
     """
     global t, x_n, y_n, theta_n
-    global rx, ry, cx, cy
+    global x_goal, y_goal
     global freq
 
     x_n = 0.0
@@ -123,16 +152,19 @@ def controller():
 
     t_init = rospy.get_time()
 
+    x_goal, y_goal, = raw_input('Insira as coordenadas de destino): ').split()
+    x_goal, y_goal = [float(i) for i in [x_goal, y_goal]]
+
     t = 0
 
     while not rospy.is_shutdown():
-        # t = rospy.get_time() - t_init
+        t = rospy.get_time() - t_init
 
-        # p_curve, v_curve = parametric_curve()
-        # Ux, Uy = control(p_curve, v_curve)
-        # vel_msg.linear.x, vel_msg.angular.z = feedback_linearization(Ux, Uy)
+        pos_potential = potential()
+        Ux, Uy = control(pos_potential)
+        vel_msg.linear.x, vel_msg.angular.z = feedback_linearization(Ux, Uy)
 
-        # pub_cmd_vel.publish(vel_msg)
+        pub_cmd_vel.publish(vel_msg)
 
         rate.sleep()
 
