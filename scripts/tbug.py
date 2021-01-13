@@ -3,7 +3,7 @@ import rospy
 from tf.transformations import euler_from_quaternion
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
-from math import cos, sin, pi, sqrt, atan2
+from math import cos, sin, pi, sqrt, atan2, atan
 from sensor_msgs.msg import PointCloud2, LaserScan
 import laser_geometry.laser_geometry as lg
 import sensor_msgs.point_cloud2 as pc2
@@ -26,7 +26,7 @@ class bug:
 		self.controlador = control()
 
 		rospy.init_node("Tbug", anonymous=True)
-		rospy.Subscriber('/odom', Odometry, self.callback_robot_odom)
+		rospy.Subscriber('/base_pose_ground_truth', Odometry, self.callback_robot_odom)
 		rospy.Subscriber('/base_scan', LaserScan, self.sensor_callback)
 		self.pub_cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
 
@@ -72,30 +72,53 @@ class bug:
 		return end_ids
 
 
-
-	def min_obst_dist(self,end_ids):
-		# frente - 500 , 581
-		# lado - 740, 851
-		# dxo = self.lidar_raw[end_ids]
-
+	def best_obstacle(self,end_ids):
 		d = self.distancy()
 		d_min = 100
 		alfa = 0
 		obst_pos = []
 		for i in end_ids:
 			dxo = self.lidar_raw[i]
-			# doq = sqrt((self.curve_pos[0]-obst_pos[0])**2 + (self.curve_pos[1]-obst_pos[1])**2)
 			doq = sqrt(d**2 + dxo**2)
 			ds = dxo+doq
+			print(self.lidar_raw[i])
 			if(d < d_min):
 				d_min = ds
 				alfa = i
 
-		print(self.lidar_raw[alfa])
-		obst_pos = [-self.lidar_raw[alfa]*cos((alfa - 180) * 180.0 / pi), self.lidar_raw[alfa]*sin((alfa -180) * 180.0 / pi)]
-		print(obst_pos)
+		obst_pos = [self.lidar_raw[alfa]*cos(np.deg2rad(alfa - 180)), self.lidar_raw[alfa]*sin(np.deg2rad(alfa - 180))]
+		obst_pos = [cos(self.robot_ori)*obst_pos[0]+sin(self.robot_ori)*obst_pos[1], -sin(self.robot_ori)*obst_pos[0]+cos(self.robot_ori)*obst_pos[1]]
+		obst_pos = [obst_pos[0]+self.robot_pos[0], obst_pos[1]+self.robot_pos[1]]
 
+		print(d_min)
+		print(alfa-180)
+		print(obst_pos)
 		return d_min, alfa-180, obst_pos
+
+	def min_dist(self):
+		s = self.lidar_raw[0]
+		cont = 0
+		for i in self.lidar_raw:
+			if (i<s):
+				s = i
+				alfa = cont
+			cont = cont + 1
+
+		return s, alfa
+
+	def check_obst_in_front(self):
+		for i in self.lidar_raw[170:190]:
+			if(i != 10):
+				return True
+		return False
+
+
+	def find_curve(self, px, py, t):
+		x = self.robot_pos[0] + t*(px - self.robot_pos[0])
+		y = self.robot_pos[1] + t*(py - self.robot_pos[1])
+
+		return x,y
+
 
 
 	def follow_target(self, px, py):
@@ -111,10 +134,12 @@ class bug:
 
 
 	def contourn_obst(self, s, alfa, obst_detec):
-		Ux = atan(math.abs(s - obst_detec))
+		Ux = -(2.0/pi)*atan(3*np.abs(s - obst_detec))
 		Uy = sqrt(1 - Ux**2)
 		self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
 
+		print(Ux)
+		print(Uy)
 		self.pub_cmd_vel.publish(self.vel_msg)
 
 
@@ -175,39 +200,97 @@ def follow():
 
 	Tbug = bug(px,py)
 	delta = 0.3 # min dist of the target to stop algorithm
-	obst_detec = 1  # min dist of the obstacle to contour
+	obst_detec = 2  # min dist of the obstacle to contour
 	px_ = px
 	py_ = py
+	dq_ant = 100000
 
 	rate = rospy.Rate(20)
 
+	stage = 0
+
 	while not rospy.is_shutdown():
-		if (Tbug.lidar_raw):
+
+
+		# Stage 0 - wait lidar
+		if (stage == 0):
+			print("Waiting for Lidar\n")
+			if(Tbug.lidar_raw):
+				stage = 1
+
+			t_init = rospy.get_time()
+
+		# Stage 1 - Go to Target
+		elif(stage == 1):
+			print("Go to Taget\n")
+			t = rospy.get_time() - t_init
+			rx, ry = Tbug.find_curve(px,py,t)
+
+			Tbug.follow_target(rx, ry)
+
 			if (Tbug.distancy() < delta):
 				print("Alvo alcancado!\n")
+				stage = 10
 				break
 
 
-			d = Tbug.distancy()
+			if(Tbug.check_obst_in_front()):
+			# end_ids = Tbug.find_endpoints()
+			# if(end_ids):
+				stage = 2
+				t_init = rospy.get_time()
+
+			if (min(Tbug.lidar_raw) < obst_detec):
+				stage = 3
+				t_init = rospy.get_time()
+
+
+
+		# Stage 2 - Go to O-i
+		elif(stage == 2):
+			print("Go to O-i\n")
 
 			end_ids = Tbug.find_endpoints()
-
-			dq,alfa,obst_pos = Tbug.min_obst_dist(end_ids)
-
-			# if(end_ids):
-				
-			# 	Tbug.go_obst(alfa)
-
+			dq,alfa,obst_pos = Tbug.best_obstacle(end_ids)
 			
-
-			print("Menor distancia robo objeto: %f \n Menor distancia objeto destino: %f \n  Angulo para o alvo: %f" % (d, dq, alfa))
-
+			# print("Menor distancia robo objeto: %f \n Menor distancia objeto destino: %f \n  Angulo para o alvo: %f" % (d, dq, alfa))
 
 			px_ = obst_pos[0]
 			py_ = obst_pos[1]
 
-			while (Tbug.dist_obst(px_,py_) > delta):
-				Tbug.follow_target(px_, py_)
+			if (dq > dq_ant):
+				stage = 3
+
+			dq_ant = dq
+
+			if (min(Tbug.lidar_raw) < obst_detec):
+				stage = 3
+
+			while (Tbug.dist_obst(px_,py_) > obst_detec):
+				t = rospy.get_time() - t_init
+				rx, ry = Tbug.find_curve(px_,py_,t)
+				Tbug.follow_target(rx, ry)
+				if (min(Tbug.lidar_raw) < obst_detec):
+					stage = 3
+					break
+
+
+		# Stage 3 - Contour Obstacle
+		elif(stage == 3):
+			print("Contour Obstacle\n")
+			d, alfa = Tbug.min_dist()
+			Tbug.contourn_obst(d,alfa,obst_detec)
+
+			if (min(Tbug.lidar_raw) > 1.2*obst_detec):
+					stage = 1
+
+		else:
+			break
+			
+
+
+		print(Tbug.lidar_raw[170:190])
+
 
 
 
