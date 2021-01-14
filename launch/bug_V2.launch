@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+    <!--node pkg="stage_ros" type="stageros" name="stageros" args="-d $(find tbug)/worlds/blank.world" output="screen"/-->
+
+    <node pkg="stage_ros" type="stageros" name="stageros" args="-d $(find tbug)/worlds/tangentbug2.world"/>
+
+
+    <node pkg="tbug" type="tbug_V2.py" name="Tbug" output="screen"/>
+
+    
+</launch>
