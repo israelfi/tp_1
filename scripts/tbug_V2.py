@@ -122,7 +122,8 @@ class bug:
 		self.pub_cmd_vel.publish(self.vel_msg)
 
 	def contourn_obst(self, s, alfa, obst_detec):
-		Ux = -(2.0/pi)*atan(s - obst_detec)
+		K = 5.0
+		Ux = -(2.0/pi)*atan(K*np.abs(s - obst_detec))
 		Uy = sqrt(1 - Ux**2)
 		self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
 
@@ -161,19 +162,18 @@ class control:
 def follow():
 	rospy.sleep(0.2)
 
-	px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa 30x30): ').split()
+	px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa 25x25): ').split()
 	px, py = [float(i) for i in [px, py]]
 
 	# px , py = [7.0, 20.0]
 
 	Tbug = bug(px,py)
-	delta = 0.3 # min dist of the target to stop algorithm
-	obst_detec = 0.5  # min dist of the obstacle to contour
+	delta = 0.5 # min dist of the target to stop algorithm
+	obst_detec = 0.8  # min dist of the obstacle to contour
 	px_ = px
 	py_ = py
 
 	d_f = 1000000
-	# d_f_n = d_f
 
 
 	rate = rospy.Rate(20)
@@ -204,6 +204,8 @@ def follow():
 				if (Tbug.distancy() < delta):
 					print("Target Founded!\n")
 					break
+
+			
 
 			# Leaving from obstacles
 			else:

@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 import rospy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PointStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from tf.transformations import euler_from_quaternion
-from math import cos, sin, pi, sqrt, atan
+from math import cos, sin, pi, sqrt, atan, atan2
 import numpy as np
+
+
 
 d = 0.2
 
+##    Rotina callback para a obtencao da pose do robo
 def callback_pose(data):
-    """
-    Rotina callback para a obtencao da pose do robo
-    """
     global x_n, y_n, theta_n
 
     x_n = data.pose.pose.position.x  # posicao 'x' do robo no mundo 
@@ -24,19 +24,22 @@ def callback_pose(data):
     w_q = data.pose.pose.orientation.w
     euler = euler_from_quaternion([x_q, y_q, z_q, w_q])
 
-    theta_n = euler[2]
+    theta_n = euler[2]  # orientacao do robo no mundo 
             
     return
 
 
+##    Rotina callback para a obtencao dos dados do Lidar
 def callback_laser(data):
-    global laser, l_range_max, l_range_min
-    laser = data.ranges
-    l_range_max = data.range_max
-    l_range_min = data.range_min
+    global laser, l_range_max, l_range_min, lp, pc2_msg
+    laser = data.ranges                     # Distancias detectadas
+    l_range_max = data.range_max          # range max do lidar
+    l_range_min = data.range_min          # range min do lidar
 
 
 
+## Calcula a menor distancia detectada pelo lidar (obstaculo mais proximo)
+## retornar a menor distancia, o angulo de deteccao e a posicao x,y do obstaculo
 def min_dist(laser):
     global x_n,y_n,theta_n
     d_min = laser[0]
@@ -44,20 +47,20 @@ def min_dist(laser):
     for i in range(len(laser)):
         if(laser[i] < d_min):
             d_min = laser[i]
-            alfa = i - 180
-
-    sx = (cos(theta_n)*(d_min*cos(np.deg2rad(alfa))) + sin(theta_n)*(d_min*sin(np.deg2rad(alfa)))) + x_n
-    sy = (-sin(theta_n)*(d_min*cos(np.deg2rad(alfa))) + cos(theta_n)*(d_min*sin(np.deg2rad(alfa)))) + y_n
+            alfa = i
 
     # sx = d_min*cos(np.deg2rad(alfa))
     # sy = d_min*sin(np.deg2rad(alfa))
+    sx = (cos(theta_n)*(d_min*cos(np.deg2rad(alfa))) + sin(theta_n)*(d_min*sin(np.deg2rad(alfa)))) + x_n
+    sy = (-sin(theta_n)*(d_min*cos(np.deg2rad(alfa))) + cos(theta_n)*(d_min*sin(np.deg2rad(alfa)))) + y_n    
+
     obs_pos = [sx, sy]
-
-    # print("Pos = [%f, %f]" % (sx,sy))
-
     return d_min, alfa, obs_pos
 
 
+
+## Feedback Linearization - calcula lei de controle v e omega para o robo
+## Entra com Vx e Vy no mundo e determinar v e omega
 def feedback_linearization(Ux, Uy):
 
     global theta_n, d
@@ -65,16 +68,15 @@ def feedback_linearization(Ux, Uy):
     vx = cos(theta_n) * Ux + sin(theta_n) * Uy
     w = -(sin(theta_n) * Ux)/ d + (cos(theta_n) * Uy) / d
 
-    # print "Lin: ", round(vx, 2), round(w, 2)
-
     return vx, w
 
 
-
+## Calcula o gradiente da func potencial de atracao para o alvo
+## Determinar as componentes Vx e Vy
 def pot_att(x,y,px,py):
     D = sqrt((px-x)**2 + (py-y)**2)
-    K = 0.1
-    D_safe = 100
+    K = 0.2
+    D_safe = 10.0
 
     if(D > D_safe):
         Ux = - D_safe*K*(x - px)/D
@@ -87,25 +89,33 @@ def pot_att(x,y,px,py):
 
     return U_a
 
+
+## Calcula o gradiente da func potencial de repulsao do obstaculo detectado
+## Determinar as componentes Vx e Vy
 def pot_rep(x, y, D, alfa, pos):
     global theta_n
-    K = 4.0
-    D_safe = 5.0
+    K = 2.0
+    D_safe = 4.0
 
-    print("OBST Dist = %f ; Pos_obs = [%f, %f] ; Pos_r = [%f, %f]" % (D,pos[0],pos[1], x, y))
+    print("Obst Dist = %f ; Pos_obst = [%f, %f] ; Pos_robot = [%f, %f]" % (D,pos[0],pos[1], x, y))
 
     if( D > D_safe):
         Ux = 0
         Uy = 0
         U_r = [Ux, Uy]
     else:
-        Ux = K*((1.0/D) - 1.0/D_safe) * (x - pos[0])/D
-        Uy = K*((1.0/D) - 1.0/D_safe) * (y - pos[1])/D
+        Ux = - K*(D - D_safe)*cos(np.deg2rad(alfa))
+        Uy = - K*(D - D_safe)*sin(np.deg2rad(alfa))
+
         U_r = [Ux, Uy]
 
     return U_r
 
 
+
+## Codigo de Controle
+## determina os valores Vx e Vy com base nas func potenciais (atracao e repulsao)
+## utiliza o feedback linearization p determinar v e omega para o robo se mover ate o alvo, desviando de obstaculos
 def controller():
     """
     Rotina primaria
@@ -124,14 +134,19 @@ def controller():
 
     # Topico onde sera publicada a velocidade do robo
     pub_cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+
+    # Topico para o ponto mais proximo
+    pub_obst = rospy.Publisher("/closet", PointStamped, queue_size=1)
     
     # Topico contendo a pose do robo
     rospy.Subscriber('/base_pose_ground_truth', Odometry, callback_pose)
+    # rospy.Subscriber('/odom', Odometry, callback_pose)
 
     # Topico contendo a leitura do lase
     rospy.Subscriber('/base_scan', LaserScan, callback_laser)
 
     vel_msg = Twist()
+    pos_obst = PointStamped()
 
     freq = 20
     
@@ -147,11 +162,15 @@ def controller():
 
         if(laser):
             D, alfa, obs_pos = min_dist(laser)
-            if(D<l_range_max and D>l_range_min):
-                U_r = pot_rep(x_n, y_n, D, alfa, obs_pos)
-            else:
-                U_r = [0, 0]
+            pos_obst.header.frame_id = 'base_link'
+            pos_obst.point.x = obs_pos[0]
+            pos_obst.point.y = obs_pos[1]
+            pub_obst.publish(pos_obst)
 
+            U_r = pot_rep(x_n, y_n, D, alfa, obs_pos)
+            # if (U_r[0] > 0 or U_r[1] > 0):
+            #     U_a = [0, 0]
+            # else:
             U_a = pot_att(x_n, y_n, px, py)
 
 
@@ -173,8 +192,11 @@ def controller():
         rate.sleep()
 
 
+
+### Main code - chama o codigo de controle
 if __name__ == '__main__':
     try:
         controller()
     except rospy.ROSInterruptException:
         pass
+

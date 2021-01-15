@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
 
-    <!--node pkg="stage_ros" type="stageros" name="stageros" args="-d $(find tbug)/worlds/blank.world" output="screen"/-->
-
-    <node pkg="stage_ros" type="stageros" name="stageros" args="-d $(find tbug)/worlds/tangentbug2.world"/>
+    <node pkg="stage_ros" type="stageros" name="stageros" args="-d $(find tp_1)/worlds/potential.world"/>
 
 
-    <node pkg="tbug" type="potential.py" name="Tbug" output="screen"/>
+    <node pkg="tp_1" type="potential.py" name="Potential" output="screen"/>
 
     
 </launch>
