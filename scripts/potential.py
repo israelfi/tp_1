@@ -7,7 +7,7 @@ from tf.transformations import euler_from_quaternion
 from math import cos, sin, pi
 
 d = 0.2
-samples = 270
+samples = 360
 
 def callback_pose(data):
     """
@@ -31,7 +31,7 @@ def callback_pose(data):
 
 def callback_laser(data):
     global laser, intensities
-    
+
     laser = data.ranges
     intensities = data.intensities
 
@@ -42,43 +42,59 @@ def potential():
     global laser, intensities
     global x_n, y_n, theta_n
 
-    alfa = 5.0
+    alfa = 50.0
     i = 1
     angulo_grau = 0
     grad_obs = [0, 0] # Gradiente (x, y)
+    grad_rep = [0, 0]
     
     # Posicao do Obstaculo
     pos_obs = [0, 0]
 
-    while i < 269:
-        if (laser[i] < laser [i-1]) and (laser[i] < laser[i+1]) and (intensities[i] == 1.0):
-            angulo_grau = i - samples/2
-            angulo_rad = angulo_grau * pi / 180.
+    # while i < (samples - 1):
+    #     if (laser[i] < laser [i-1]) and (laser[i] < laser[i+1]) and (intensities[i] == 1.0):
+    #         angulo_grau = i - samples/2
+    #         angulo_rad = angulo_grau * pi / 180.
 
-            grad_obs[0] += - cos(angulo_rad + theta_n) / (laser[i] ** 2)
-            grad_obs[1] += - sin(angulo_rad + theta_n) / (laser[i] ** 2)
+    #         print "Minimo local:", angulo_grau, angulo_rad + theta_n
 
-            pos_obs[0] = [x_n + laser[i]*cos(angulo_rad + theta_n)]
-            pos_obs[1] = [y_n + laser[i]*sin(angulo_rad + theta_n)]
+    #         grad_obs[0] += - cos(angulo_rad + theta_n) / (laser[i] ** 2)
+    #         grad_obs[1] += - sin(angulo_rad + theta_n) / (laser[i] ** 2)
 
-        i += 1
+    #         pos_obs[0] = [x_n + laser[i]*cos(angulo_rad + theta_n)]
+    #         pos_obs[1] = [y_n + laser[i]*sin(angulo_rad + theta_n)]
+
+    #     i += 1
+    
+
+    # ---
+    d_min = min(laser)
+    i = laser.index(d_min)
+
+    angulo_grau = i - samples/2
+    angulo_rad = angulo_grau * pi / 180.
+
+
+    grad_obs[0] += - cos(angulo_rad + theta_n)
+    grad_obs[1] += - sin(angulo_rad + theta_n)
+
+    grad_rep[0] = 5.0 * (1/5 - 1/d_min) * (1/(d_min ** 2)) * grad_obs[0]
+    grad_rep[0] = 5.0 * (1/5 - 1/d_min) * (1/(d_min ** 2)) * grad_obs[1]
+    # ---
 
     grad_obs[0] = alfa * grad_obs[0]
     grad_obs[1] = alfa * grad_obs[1]
 
     # print grad_obs
 
-    return grad_obs
-
-    
+    return grad_rep
 
 
 # Sinais de controle
 def control(pos):
     """
-    Entradas:
+    Entrada:
     pos: Vetor contendo a posicao planar do robo
-    vel: Vetor contendo a velocidade de referencia a ser seguida
 
     Retorno:
     Ux: Velocidade no eixo x do sistema de coordenadas inercial

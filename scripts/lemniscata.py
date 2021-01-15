@@ -74,7 +74,7 @@ def parametric_curve():
 def control(pos, vel):
     """
     Entradas:
-    pos: Vetor contendo a posicao planar do robo
+    pos: Vetor contendo a curva a ser seguida
     vel: Vetor contendo a velocidade de referencia a ser seguida
 
     Retorno:
