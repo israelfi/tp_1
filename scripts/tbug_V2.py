@@ -187,21 +187,9 @@ def follow():
 
 			# Dist. ate o alvo
 			dq = Tbug.distancy()
-			theta_s = atan2((py - Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
-			theta_s = np.mod(theta_s, 2*pi)
-			theta_q = np.rad2deg(theta_s)
-						
-			# theta_q_idx = ((theta_q + (Tbug.robot_ori + pi)) * 180 / pi) + 180 - 360 + 90
-			ori_rad = Tbug.robot_ori
-			ori_rad = np.mod(ori_rad, 2*pi)
-			ori_deg = np.rad2deg(ori_rad)
-			
-			theta_q_idx = theta_q - ori_deg + 180
-			print '\ntheta:', theta_q, '| robot:', ori_deg
-			if theta_q_idx > 360:
-				theta_q_idx -= 360
 
-			print 'theta_idx:', theta_q_idx
+			theta_s = atan2((py -Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
+			theta_q = 180 - (Tbug.robot_ori - np.rad2deg(theta_s))
 
 			# Leituras do laser
 			do = Tbug.lidar_raw
@@ -257,7 +245,6 @@ def follow():
 							Tbug.contourn_obst(d,alfa,obst_detec)
 
 							dq = Tbug.distancy()
-							theta_q = atan2((py -Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
 
 							if(dq < delta or d_re < d_f):
 								break
