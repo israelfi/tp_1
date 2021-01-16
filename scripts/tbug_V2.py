@@ -142,18 +142,18 @@ class control:
 
 	def control_(self,pos_curve, pos_robot, theta):
 
-	    Ux = self.k * (pos_curve[0] - pos_robot[0])
-	    Uy = self.k * (pos_curve[1] - pos_robot[1])
+		Ux = self.k * (pos_curve[0] - pos_robot[0])
+		Uy = self.k * (pos_curve[1] - pos_robot[1])
 
-	    return self.feedback_linearization(Ux,Uy,theta)
+		return self.feedback_linearization(Ux,Uy,theta)
 
 
 	def feedback_linearization(self,Ux, Uy, theta_n):
 
-	    vx = cos(theta_n) * Ux + sin(theta_n) * Uy
-	    w = -(sin(theta_n) * Ux)/ self.d  + (cos(theta_n) * Uy) / self.d 
+		vx = cos(theta_n) * Ux + sin(theta_n) * Uy
+		w = -(sin(theta_n) * Ux)/ self.d  + (cos(theta_n) * Uy) / self.d
 
-	    return vx, w
+		return vx, w
 
 
 
@@ -185,17 +185,37 @@ def follow():
 
 		if(Tbug.lidar_raw):
 
+			# Dist. ate o alvo
 			dq = Tbug.distancy()
-			theta_q = atan2((py -Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
+			theta_s = atan2((py - Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
+			theta_s = np.mod(theta_s, 2*pi)
+			theta_q = np.rad2deg(theta_s)
+						
+			# theta_q_idx = ((theta_q + (Tbug.robot_ori + pi)) * 180 / pi) + 180 - 360 + 90
+			ori_rad = Tbug.robot_ori
+			ori_rad = np.mod(ori_rad, 2*pi)
+			ori_deg = np.rad2deg(ori_rad)
+			
+			theta_q_idx = theta_q - ori_deg + 180
+			print '\ntheta:', theta_q, '| robot:', ori_deg
+			if theta_q_idx > 360:
+				theta_q_idx -= 360
 
+			print 'theta_idx:', theta_q_idx
+
+			# Leituras do laser
 			do = Tbug.lidar_raw
 			dpo = [Tbug.lidar_x, Tbug.lidar_y]  ## dpo[coord][angle] -> dpo[0][10] = pos x referente a leitura de feixe 10 graus
 
+			# Dist. e angulo do obstaculo mais prox.
 			do_min, idx_do_min = Tbug.min_dist()
 
+			
 
-			# Follow Target			
-			if( (do[int(floor(theta_q)+1)] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
+			# Follow Target	
+			print(do[int(floor(theta_q_idx))], Tbug.l_max, dq, do_min, obst_detec)		
+			if( (do[int(floor(theta_q_idx))] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q_idx))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
+			# if( (do[int(floor(theta_q)+1)] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
 				print("Going to the Taget\n")
 				t = rospy.get_time() - t_init
 				rx, ry = Tbug.find_curve(px,py,t)
@@ -203,7 +223,9 @@ def follow():
 
 				if (Tbug.distancy() < delta):
 					print("Target Founded!\n")
-					break
+					px, py, = raw_input('Insira o valor do proximo destino em x e y (valores separados por espaco, considere o tamanho do mapa 30x30): ').split()
+					px, py = [float(i) for i in [px, py]]
+					Tbug.curve_pos = [px, py]
 
 			
 
@@ -262,7 +284,7 @@ def follow():
 
 
 if __name__ == '__main__':
-    try:
-        follow()
-    except rospy.ROSInterruptException:
-        pass
+	try:
+		follow()
+	except rospy.ROSInterruptException:
+		pass
