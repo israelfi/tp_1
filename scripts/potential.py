@@ -55,7 +55,7 @@ def min_dist(laser):
     sy = (-sin(theta_n)*(d_min*cos(np.deg2rad(alfa - 180))) + cos(theta_n)*(d_min*sin(np.deg2rad(alfa - 180)))) + y_n    
 
     obs_pos = [sx, sy]
-    return d_min, alfa, obs_pos
+    return d_min, alfa-1, obs_pos
 
 
 
@@ -104,8 +104,12 @@ def pot_rep(x, y, D, alfa, pos):
         Uy = 0
         U_r = [Ux, Uy]
     else:
-        Ux = - K*(D - D_safe)*cos(np.deg2rad(alfa))
-        Uy = - K*(D - D_safe)*sin(np.deg2rad(alfa))
+        # Ux = - K*(D - D_safe)*cos(alfa*pi/180 + theta_n)
+        # Uy = - K*(D - D_safe)*sin(alfa*pi/180 + theta_n)
+        grad_x = - cos(alfa*pi/180 + theta_n)
+        grad_y = - sin(alfa*pi/180 + theta_n)
+        Ux = K * (1.0/D_safe - 1.0/D) * (1.0/D**2) * grad_x 
+        Uy = K * (1.0/D_safe - 1.0/D) * (1.0/D**2) * grad_y
 
         U_r = [Ux, Uy]
 
