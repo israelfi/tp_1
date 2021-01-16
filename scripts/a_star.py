@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import rospy
+import rospkg
+import os
 from nav_msgs.msg import OccupancyGrid, Odometry
 from geometry_msgs.msg import PoseArray, Twist
 from tf.transformations import euler_from_quaternion
@@ -169,7 +171,10 @@ def callback_pose(data):
 def planning():
    
     ## Create a grid from image mape
-    image = img.imread('/home/victor/ROS_Projects/doc_ws/src/tbug/worlds/map2.bmp')
+    rospack = rospkg.RosPack()
+    path = rospack.get_path('tp_1')
+    image_path = path + '/worlds/map2.bmp'
+    image = img.imread(image_path)
     image.setflags(write=1)
 
     # white = np.ones((100, 100), dtype=np.float)
@@ -221,7 +226,7 @@ def planning():
     # Main Loop
     while not rospy.is_shutdown():
         flag_first = True
-        image = img.imread('/home/victor/ROS_Projects/doc_ws/src/tbug/worlds/map2.bmp')
+        image = img.imread(image_path)
         image.setflags(write=1)
         px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa -50x50): ').split()
         px, py = [float(i) for i in [px, py]]
