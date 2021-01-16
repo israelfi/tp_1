@@ -186,7 +186,8 @@ def follow():
 		if(Tbug.lidar_raw):
 
 			dq = Tbug.distancy()
-			theta_q = atan2((py -Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
+			theta_s = atan2((py -Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
+			theta_q = 180 - (Tbug.robot_ori - np.rad2deg(theta_s))
 
 			do = Tbug.lidar_raw
 			dpo = [Tbug.lidar_x, Tbug.lidar_y]  ## dpo[coord][angle] -> dpo[0][10] = pos x referente a leitura de feixe 10 graus
@@ -235,7 +236,6 @@ def follow():
 							Tbug.contourn_obst(d,alfa,obst_detec)
 
 							dq = Tbug.distancy()
-							theta_q = atan2((py -Tbug.robot_pos[1]), (px - Tbug.robot_pos[0]))
 
 							if(dq < delta or d_re < d_f):
 								break
