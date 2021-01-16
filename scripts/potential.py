@@ -51,8 +51,8 @@ def min_dist(laser):
 
     # sx = d_min*cos(np.deg2rad(alfa))
     # sy = d_min*sin(np.deg2rad(alfa))
-    sx = (cos(theta_n)*(d_min*cos(np.deg2rad(alfa))) + sin(theta_n)*(d_min*sin(np.deg2rad(alfa)))) + x_n
-    sy = (-sin(theta_n)*(d_min*cos(np.deg2rad(alfa))) + cos(theta_n)*(d_min*sin(np.deg2rad(alfa)))) + y_n    
+    sx = (cos(theta_n)*(d_min*cos(np.deg2rad(alfa - 180))) + sin(theta_n)*(d_min*sin(np.deg2rad(alfa - 180)))) + x_n
+    sy = (-sin(theta_n)*(d_min*cos(np.deg2rad(alfa - 180))) + cos(theta_n)*(d_min*sin(np.deg2rad(alfa - 180)))) + y_n    
 
     obs_pos = [sx, sy]
     return d_min, alfa, obs_pos
