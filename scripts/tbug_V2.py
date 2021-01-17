@@ -254,7 +254,7 @@ def follow():
 					print 'Endpoint:', go_end_p
 
 					print "d_f_n:", d_f_n, "| d_f:", d_f, "\n"	
-					if not (d_f_n > d_f):
+					if ((do_min > obst_detec) and not (d_f_n > d_f)):
 						print("Going for the best obstacle avoidance.")
 						d_f = d_f_n
 						go_end = go_end_p
@@ -264,9 +264,7 @@ def follow():
 						do_min, idx_do_min = Tbug.min_dist()
 						if(do_min > obst_detec):
 							t = rospy.get_time() - t_init
-							# rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-							rx, ry = go_end[0], go_end[1]
-							## print(rx, ry)
+							rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
 							Tbug.follow_target(rx, ry)
 
 						# while(do_min > obst_detec and not (d_f_n > d_f)):
