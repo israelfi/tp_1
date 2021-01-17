@@ -133,13 +133,57 @@ class bug:
 
 		self.pub_cmd_vel.publish(self.vel_msg)
 
-	def contourn_obst(self, s, alfa, obst_detec):
+	# def contourn_obst(self, s, alfa, obst_detec):
+	def contourn_obst(self, Ux, Uy):
 		K = 5.0
-		Ux = -(2.0/pi)*atan(K*np.abs(s - obst_detec))
-		Uy = sqrt(1 - Ux**2)
+		# Ux = -(2.0/pi)*atan(K*np.abs(s - obst_detec))
+		# Uy = sqrt(1 - Ux**2)
 		self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
 
 		self.pub_cmd_vel.publish(self.vel_msg)
+
+	## Calcula o gradiente da func potencial de atracao para o alvo
+	## Determinar as componentes Vx e Vy
+	def pot_att(self):
+		D = sqrt((self.curve_pos[0]-self.robot_pos[0])**2 + (self.curve_pos[1]-self.robot_pos[1])**2)
+		K = 0.2
+		D_safe = 10.0
+
+		if(D > D_safe):
+			Ux = - D_safe*K*(self.robot_pos[0] - self.curve_pos[0])/D
+			Uy = - D_safe*K*(self.robot_pos[1] - self.curve_pos[1])/D
+			U_a = [Ux, Uy]
+		else:
+			Ux = - K*(self.robot_pos[0] - self.curve_pos[0])
+			Uy = - K*(self.robot_pos[1] - self.curve_pos[1])
+			U_a = [Ux, Uy]
+
+		return U_a
+
+
+	## Calcula o gradiente da func potencial de repulsao do obstaculo detectado
+	## Determinar as componentes Vx e Vy
+	def pot_rep(self, D, alfa):
+		K = 2.0
+		D_safe = 4.0
+
+		# print("Obst Dist = %f ; Pos_obst = [%f, %f] ; Pos_robot = [%f, %f]" % (D,pos[0],pos[1], self.robot_pos[0], self.robot_pos[1]))
+
+		if( D > D_safe):
+			Ux = 0
+			Uy = 0
+			U_r = [Ux, Uy]
+		else:
+			# Ux = - K*(D - D_safe)*cos(alfa*pi/180 + theta_n)
+			# Uy = - K*(D - D_safe)*sin(alfa*pi/180 + theta_n)
+			grad_x = - cos(alfa*pi/180 + self.robot_ori)
+			grad_y = - sin(alfa*pi/180 + self.robot_ori)
+			Ux = K * (1.0/D_safe - 1.0/D) * (1.0/D**2) * grad_x 
+			Uy = K * (1.0/D_safe - 1.0/D) * (1.0/D**2) * grad_y
+
+			U_r = [Ux, Uy]
+
+		return U_r
 
 
 
@@ -290,7 +334,11 @@ def follow():
 						while(True):
 							print("Following the Wall")
 							d, alfa = Tbug.min_dist()
-							Tbug.contourn_obst(d,alfa,obst_detec)
+							U_a = Tbug.pot_att()
+							U_r = Tbug.pot_rep(d, alfa)
+							Ux = U_a[0] + U_r[0]
+							Uy = U_a[1] + U_r[1]
+							Tbug.contourn_obst(Ux, Uy)
 
 							dq = Tbug.distancy()
 
