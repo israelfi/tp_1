@@ -262,10 +262,10 @@ def follow():
 						dummy_angle = atan2(dummy_d2[1], dummy_d2[0])
 						dummy_d2 = sqrt(np.sum(dummy_d2**2))
 						do_min, idx_do_min = Tbug.min_dist()
-						if(do_min > obst_detec):
-							t = rospy.get_time() - t_init
-							rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-							Tbug.follow_target(rx, ry)
+						
+						t = rospy.get_time() - t_init
+						rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
+						Tbug.follow_target(rx, ry)
 
 						# while(do_min > obst_detec and not (d_f_n > d_f)):
 						# 	print "\nd_f_n:", d_f_n, "| d_f:", d_f
@@ -278,8 +278,8 @@ def follow():
 						# 	dummy_d2 = sqrt(np.sum(dummy_d2**2))
 						# 	do_min, idx_do_min = Tbug.min_dist()
 						# 	t = rospy.get_time() - t_init
-						# 	# rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-						# 	rx, ry = go_end[0], go_end[1]
+						# 	rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
+						# 	# rx, ry = go_end[0], go_end[1]
 						# 	print(rx, ry)
 						# 	Tbug.follow_target(rx, ry)
 
