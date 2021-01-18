@@ -172,12 +172,9 @@ def controller():
             pub_obst.publish(pos_obst)
 
             U_r = pot_rep(x_n, y_n, D, alfa, obs_pos)
-            # if (U_r[0] > 0 or U_r[1] > 0):
-            #     U_a = [0, 0]
-            # else:
+
             U_a = pot_att(x_n, y_n, px, py)
-
-
+            
             Ux = U_a[0] + U_r[0]
             Uy = U_a[1] + U_r[1]
             vel_msg.linear.x, vel_msg.angular.z = feedback_linearization(Ux, Uy)
@@ -190,6 +187,7 @@ def controller():
                 print("Alvo alcancado!\n")
                 px, py, = raw_input('Insira o valor do proximo destino em x e y (valores separados por espaco, considere o tamanho do mapa 30x30): ').split()
                 px, py = [float(i) for i in [px, py]]
+
 
 
 

@@ -69,7 +69,9 @@ def Astar(maze, start, target):
 
         # Generate children
         children = []
-        for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]: # Adjacent squares
+        # for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]: # Adjacent squares
+        safity = 2
+        for new_position in [(0, -safity), (0, safity), (-safity, 0), (safity, 0), (-safity, -safity), (-safity, safity), (safity, -safity), (safity, safity)]: # Adjacent squares
 
             # Get node position
             node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
@@ -165,6 +167,11 @@ def callback_pose(data):
     return
 
 
+def neighbors(a, radius, rowNumber, columnNumber):
+     return [[a[i][j] if  i >= 0 and i < len(a) and j >= 0 and j < len(a[0]) else 0
+                for j in range(columnNumber-1-radius, columnNumber+radius)]
+                    for i in range(rowNumber-1-radius, rowNumber+radius)]
+
 
 
 ### MAIN CODE
@@ -185,6 +192,10 @@ def planning():
 
     M = np.zeros((len(image),len(image)))
 
+
+    idx_i = []
+    idx_j = []
+
     for i in range(len(image)):
         for j in range(len(image)):
             if(image[i,j,0] == 255 and image[i,j,1] == 255 and image[i,j,2] == 255):
@@ -193,8 +204,9 @@ def planning():
             else:
                 # white[i,j] = 0
                 M[i,j] = 1
+               
 
-    # plt.imshow(white, cmap='gray',vmin=0,vmax=1)
+    # plt.imshow(M, cmap='gray',vmin=0,vmax=1)
     # plt.show()
 
 
@@ -228,15 +240,15 @@ def planning():
         flag_first = True
         image = img.imread(image_path)
         image.setflags(write=1)
-        px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa -50x50): ').split()
+        px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa -48x48): ').split()
         px, py = [float(i) for i in [px, py]]
 
         resolution_map = 1     # cada 1 pixel, equivale a 1 m
         x_desloc = 50
         y_desloc = 50
 
-        x_start = 0
-        y_start = 0
+        x_start = x_n
+        y_start = y_n
         x_target = px
         y_target = py
         start = (int(round((y_start*resolution_map)+y_desloc)), int(round((x_start*resolution_map)+x_desloc)))
@@ -268,6 +280,10 @@ def planning():
                 image[start[0],start[1]] = r_color
                 image[target[0],target[1]] = b_color
                 pic = Image.fromarray(image, 'RGB')
+                basewidth = 400
+                wpercent = (basewidth/float(pic.size[0]))
+                hsize = int((float(pic.size[1])*float(wpercent)))
+                pic = pic.resize((basewidth,hsize), Image.ANTIALIAS)
                 pic.show()
 
             
@@ -275,7 +291,7 @@ def planning():
             for i in range(len(t_x)):
                 t_init = rospy.get_time()
                 D = 1000
-                while(D > 0.2):
+                while(D > 0.05 and not rospy.is_shutdown()):
                     D = math.sqrt((t_y[i]-y_n)**2+(t_x[i]-x_n)**2)
                     t = rospy.get_time() - t_init
                     # dx,dy = controlador.find_curve(x_n, y_n, t_x, t_y, t)
