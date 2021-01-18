@@ -27,7 +27,7 @@ window (
 
 model (
     name "world"
-    bitmap "map2.bmp"
+    bitmap "map_obstacle.bmp"
     size [50.000 50.000 0.700]
     pose [0.000 0.000 0.000 0.000 ]
 

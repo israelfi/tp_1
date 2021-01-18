@@ -3,7 +3,7 @@ import rospy
 from tf.transformations import euler_from_quaternion
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
-from math import cos, sin, pi, sqrt, atan2, atan, floor, ceil
+from math import cos, sin, pi, sqrt, atan2, atan, floor, ceil, copysign
 from sensor_msgs.msg import PointCloud2, LaserScan
 import laser_geometry.laser_geometry as lg
 import sensor_msgs.point_cloud2 as pc2
@@ -63,25 +63,6 @@ class bug:
 		return d
 
 	def find_endpoints(self):
-		# a = min(2,self.l_max)
-		# ind = 0.1*a
-
-		# dist = np.array(self.lidar_raw)
-
-		# for i in range(len(dist)):
-		# 	if(dist[i] >= self.l_max):
-		# 		dist[i] = 0
-
-		# np.append(dist,dist[0])
-		# dist2 = np.append(dist[1:len(dist)], 0)
-		# duum = np.abs(dist2 - dist)
-		# duum = duum[0:len(duum)-1]
-		# idx = []
-		# for i in range(len(duum)):
-		# 	if(duum[i] > ind):
-		# 		idx.append(i)
-		# print idx
-		# return idx
 		end_ids = []
 		cont = 0
 		for i in range(1, len(self.lidar_raw)-1):
@@ -90,7 +71,6 @@ class bug:
 					end_ids.append(i)
 				elif(self.lidar_raw[i-1] >= self.l_max):
 					end_ids.append(i)
-
 
 		return end_ids
 
@@ -133,14 +113,23 @@ class bug:
 
 		self.pub_cmd_vel.publish(self.vel_msg)
 
-	# def contourn_obst(self, s, alfa, obst_detec):
-	def contourn_obst(self, Ux, Uy):
-		K = 5.0
-		# Ux = -(2.0/pi)*atan(K*np.abs(s - obst_detec))
-		# Uy = sqrt(1 - Ux**2)
-		self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
+	def contourn_obst(self, s, alfa, obst_detec):
+	# def contourn_obst(self, Ux, Uy):
+		# K = 5.0
+		# # Ux = -(2.0/pi)*atan(K*np.abs(s - obst_detec))
+		# # Uy = sqrt(1 - Ux**2)
+		# self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
 
+		# self.pub_cmd_vel.publish(self.vel_msg)
+		
+		K = 1.0
+		d = 0.2
+		Ux = (2.0/pi)*atan(K*(s-obst_detec))
+		Uy = sqrt(1.0-Ux**2)
+		self.vel_msg.linear.x  = (cos(np.deg2rad(alfa-180))*Ux - sin(np.deg2rad(alfa-180))*Uy)
+		self.vel_msg.angular.z = (sin(np.deg2rad(alfa-180))*Ux/d + cos(np.deg2rad(alfa-180))*Uy/d)
 		self.pub_cmd_vel.publish(self.vel_msg)
+
 
 	## Calcula o gradiente da func potencial de atracao para o alvo
 	## Determinar as componentes Vx e Vy
@@ -225,7 +214,7 @@ def follow():
 
 	Tbug = bug(px,py)
 	delta = 0.5 # min dist of the target to stop algorithm
-	obst_detec = 0.8  # min dist of the obstacle to contour
+	obst_detec = 1.0  # min dist of the obstacle to contour
 	px_ = px
 	py_ = py
 
@@ -307,25 +296,25 @@ def follow():
 						dummy_d2 = sqrt(np.sum(dummy_d2**2))
 						do_min, idx_do_min = Tbug.min_dist()
 						
-						t = rospy.get_time() - t_init
-						rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-						Tbug.follow_target(rx, ry)
+						# t = rospy.get_time() - t_init
+						# rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
+						# Tbug.follow_target(rx, ry)
 
-						# while(do_min > obst_detec and not (d_f_n > d_f)):
-						# 	print "\nd_f_n:", d_f_n, "| d_f:", d_f
-						# 	print("Going for the best obstacle avoidance")
-						# 	d_f_n, go_end_p = Tbug.best_obstacle(endp)
-						# 	d_f = d_f_n
-						# 	go_end = go_end_p
-						# 	dummy_d2 = go_end - np.array([Tbug.robot_pos[0],Tbug.robot_pos[1]])
-						# 	dummy_angle = atan2(dummy_d2[1], dummy_d2[0])
-						# 	dummy_d2 = sqrt(np.sum(dummy_d2**2))
-						# 	do_min, idx_do_min = Tbug.min_dist()
-						# 	t = rospy.get_time() - t_init
-						# 	rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-						# 	# rx, ry = go_end[0], go_end[1]
-						# 	print(rx, ry)
-						# 	Tbug.follow_target(rx, ry)
+						while(do_min > obst_detec and not (d_f_n > d_f)):
+							# print "\nd_f_n:", d_f_n, "| d_f:", d_f
+							# print("Going for the best obstacle avoidance")
+							# d_f_n, go_end_p = Tbug.best_obstacle(endp)
+							# d_f = d_f_n
+							# go_end = go_end_p
+							# dummy_d2 = go_end - np.array([Tbug.robot_pos[0],Tbug.robot_pos[1]])
+							# dummy_angle = atan2(dummy_d2[1], dummy_d2[0])
+							# dummy_d2 = sqrt(np.sum(dummy_d2**2))
+							do_min, idx_do_min = Tbug.min_dist()
+							t = rospy.get_time() - t_init
+							rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
+							# rx, ry = go_end[0], go_end[1]
+							# print(rx, ry)
+							Tbug.follow_target(rx, ry)
 
 					else:
 						d_re = d_f
@@ -334,11 +323,14 @@ def follow():
 						while(True):
 							print("Following the Wall")
 							d, alfa = Tbug.min_dist()
-							U_a = Tbug.pot_att()
-							U_r = Tbug.pot_rep(d, alfa)
-							Ux = U_a[0] + U_r[0]
-							Uy = U_a[1] + U_r[1]
-							Tbug.contourn_obst(Ux, Uy)
+
+							# U_a = Tbug.pot_att()
+							# U_r = Tbug.pot_rep(d, alfa)
+							# Ux = U_a[0] + U_r[0]
+							# Uy = U_a[1] + U_r[1]
+							# Tbug.contourn_obst(Ux, Uy)
+
+							Tbug.contourn_obst(d, alfa, obst_detec)
 
 							dq = Tbug.distancy()
 
