@@ -171,6 +171,9 @@ def follow():
 	stage = 0
 	t_init = rospy.get_time()
 
+	flag_out = False
+	flag_in = True
+
 	while not rospy.is_shutdown():
 
 		if(Tbug.lidar_raw):
@@ -198,9 +201,16 @@ def follow():
 			# Dist. e angulo do obstaculo mais prox.
 			do_min, idx_do_min = Tbug.min_dist()
 
+
+
+			if(flag_out):
+				print("Do not have solution! \n")
+				break
+
 			
 
-			# Follow Target		
+			# Follow Target	
+			t_init = rospy.get_time()	
 			if( (do[int(floor(theta_q_idx))] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q_idx))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
 				print("Going to the Taget\n")
 				t = rospy.get_time() - t_init
@@ -232,7 +242,7 @@ def follow():
 						dummy_d2 = sqrt(np.sum(dummy_d2**2))
 						do_min, idx_do_min = Tbug.min_dist()
 						
-
+						t_init = rospy.get_time()
 						while(do_min > obst_detec and not (d_f_n > d_f)):
 							do_min, idx_do_min = Tbug.min_dist()
 							t = rospy.get_time() - t_init
@@ -243,8 +253,14 @@ def follow():
 						d_re = d_f
 						d_angle = dummy_angle
 
+						if(flag_in):
+							t_init_out = rospy.get_time()
+							flag_in = False
+							rpos = [Tbug.robot_pos[0], Tbug.robot_pos[1]]	
+
 						while(True):
 							print("Following the Wall")
+
 							d, alfa = Tbug.min_dist()
 
 							Tbug.contourn_obst(d, alfa, obst_detec)
@@ -259,12 +275,14 @@ def follow():
 
 							do_min, idx_do_min = Tbug.min_dist()
 
-							if(do_min > 1.4*obst_detec):
+							Dps = sqrt((rpos[0] - Tbug.robot_pos[0])**2 + (rpos[1] - Tbug.robot_pos[1])**2)
+							print("distancy = %f\n\n" %Dps)
+							if(Dps < 0.3 and (rospy.get_time() - t_init_out) > 1):
+								flag_out = True
 								break
 
 							d_goal = sqrt(np.array(dpo[0][idx_do_min] - px)**2 + np.array(dpo[1][idx_do_min] - py)**2)
 							d_re = do[idx_do_min] + d_goal
-
 
 				else:
 					print("Do not have solution! \n")
