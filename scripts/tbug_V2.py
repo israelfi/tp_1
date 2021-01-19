@@ -82,7 +82,6 @@ class bug:
 			dummy_f = np.sqrt(np.sum(dummy_f**2))
 			dummy_d = np.array([self.lidar_x[endp[i]], self.lidar_y[endp[i]]]) - np.array([self.robot_pos[0],self.robot_pos[1]])
 			dummy_d = np.sqrt(np.sum(dummy_d**2))
-			# print "\nendp:", endp[i], "dummy_f:", dummy_f, "dummy_d:", dummy_d, "\n"
 			if(d_f_n > dummy_f + dummy_d):
 				d_f_n = dummy_f + dummy_d
 				go_end_p = np.array([self.lidar_x[endp[i]], self.lidar_y[endp[i]]])
@@ -114,68 +113,16 @@ class bug:
 		self.pub_cmd_vel.publish(self.vel_msg)
 
 	def contourn_obst(self, s, alfa, obst_detec):
-	# def contourn_obst(self, Ux, Uy):
-		# K = 5.0
-		# # Ux = -(2.0/pi)*atan(K*np.abs(s - obst_detec))
-		# # Uy = sqrt(1 - Ux**2)
-		# self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
-
-		# self.pub_cmd_vel.publish(self.vel_msg)
 		
 		K = 1.0
-		d = 0.2
-		Ux = (2.0/pi)*atan(K*(s-obst_detec))
-		Uy = sqrt(1.0-Ux**2)
-		self.vel_msg.linear.x  = (cos(np.deg2rad(alfa-180))*Ux - sin(np.deg2rad(alfa-180))*Uy)
-		self.vel_msg.angular.z = (sin(np.deg2rad(alfa-180))*Ux/d + cos(np.deg2rad(alfa-180))*Uy/d)
+		Ux_ = (2.0/pi)*atan(K*(s- obst_detec))
+		Uy_ = sqrt(1.0-Ux_**2)
+
+		Ux = Ux_*cos(np.deg2rad(alfa-180)+self.robot_ori) - Uy_*sin(np.deg2rad(alfa-180)+self.robot_ori)
+		Uy = Ux_*sin(np.deg2rad(alfa-180)+self.robot_ori) + Uy_*cos(np.deg2rad(alfa-180)+self.robot_ori)
+
+		self.vel_msg.linear.x, self.vel_msg.angular.z = self.controlador.feedback_linearization(Ux,Uy,self.robot_ori)
 		self.pub_cmd_vel.publish(self.vel_msg)
-
-
-	## Calcula o gradiente da func potencial de atracao para o alvo
-	## Determinar as componentes Vx e Vy
-	def pot_att(self):
-		D = sqrt((self.curve_pos[0]-self.robot_pos[0])**2 + (self.curve_pos[1]-self.robot_pos[1])**2)
-		K = 0.2
-		D_safe = 10.0
-
-		if(D > D_safe):
-			Ux = - D_safe*K*(self.robot_pos[0] - self.curve_pos[0])/D
-			Uy = - D_safe*K*(self.robot_pos[1] - self.curve_pos[1])/D
-			U_a = [Ux, Uy]
-		else:
-			Ux = - K*(self.robot_pos[0] - self.curve_pos[0])
-			Uy = - K*(self.robot_pos[1] - self.curve_pos[1])
-			U_a = [Ux, Uy]
-
-		return U_a
-
-
-	## Calcula o gradiente da func potencial de repulsao do obstaculo detectado
-	## Determinar as componentes Vx e Vy
-	def pot_rep(self, D, alfa):
-		K = 2.0
-		D_safe = 4.0
-
-		# print("Obst Dist = %f ; Pos_obst = [%f, %f] ; Pos_robot = [%f, %f]" % (D,pos[0],pos[1], self.robot_pos[0], self.robot_pos[1]))
-
-		if( D > D_safe):
-			Ux = 0
-			Uy = 0
-			U_r = [Ux, Uy]
-		else:
-			# Ux = - K*(D - D_safe)*cos(alfa*pi/180 + theta_n)
-			# Uy = - K*(D - D_safe)*sin(alfa*pi/180 + theta_n)
-			grad_x = - cos(alfa*pi/180 + self.robot_ori)
-			grad_y = - sin(alfa*pi/180 + self.robot_ori)
-			Ux = K * (1.0/D_safe - 1.0/D) * (1.0/D**2) * grad_x 
-			Uy = K * (1.0/D_safe - 1.0/D) * (1.0/D**2) * grad_y
-
-			U_r = [Ux, Uy]
-
-		return U_r
-
-
-
 
 
 
@@ -196,7 +143,7 @@ class control:
 	def feedback_linearization(self,Ux, Uy, theta_n):
 
 		vx = cos(theta_n) * Ux + sin(theta_n) * Uy
-		w = -(sin(theta_n) * Ux)/ self.d  + (cos(theta_n) * Uy) / self.d
+		w = -sin(theta_n)*Ux/self.d + cos(theta_n)*Uy/self.d
 
 		return vx, w
 
@@ -209,8 +156,6 @@ def follow():
 
 	px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa 25x25): ').split()
 	px, py = [float(i) for i in [px, py]]
-
-	# px , py = [7.0, 20.0]
 
 	Tbug = bug(px,py)
 	delta = 0.5 # min dist of the target to stop algorithm
@@ -237,17 +182,14 @@ def follow():
 			theta_s = np.mod(theta_s, 2*pi)
 			theta_q = np.rad2deg(theta_s)
 						
-			# theta_q_idx = ((theta_q + (Tbug.robot_ori + pi)) * 180 / pi) + 180 - 360 + 90
 			ori_rad = Tbug.robot_ori
 			ori_rad = np.mod(ori_rad, 2*pi)
 			ori_deg = np.rad2deg(ori_rad)
 			
 			theta_q_idx = theta_q - ori_deg + 180
-			# print '\ntheta:', theta_q, '| robot:', ori_deg
 			if theta_q_idx > 360:
 				theta_q_idx -= 360
 
-			# print 'theta_idx:', theta_q_idx
 
 			# Leituras do laser
 			do = Tbug.lidar_raw
@@ -258,10 +200,8 @@ def follow():
 
 			
 
-			# Follow Target	
-			# print(do[int(floor(theta_q_idx))], Tbug.l_max, dq, do_min, obst_detec)		
+			# Follow Target		
 			if( (do[int(floor(theta_q_idx))] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q_idx))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
-			# if( (do[int(floor(theta_q)+1)] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
 				print("Going to the Taget\n")
 				t = rospy.get_time() - t_init
 				rx, ry = Tbug.find_curve(px,py,t)
@@ -281,12 +221,8 @@ def follow():
 				endp = Tbug.find_endpoints()
 				if(endp):
 					endp = Tbug.find_endpoints()
-					## print(endp)
 					# Dist. e coordenadas do ponto de descontinuidade que minimza a dist ate o alvo
 					d_f_n, go_end_p = Tbug.best_obstacle(endp)
-					print 'Endpoint:', go_end_p
-
-					print "d_f_n:", d_f_n, "| d_f:", d_f, "\n"	
 					if ((do_min > obst_detec) and not (d_f_n > d_f)):
 						print("Going for the best obstacle avoidance.")
 						d_f = d_f_n
@@ -296,24 +232,11 @@ def follow():
 						dummy_d2 = sqrt(np.sum(dummy_d2**2))
 						do_min, idx_do_min = Tbug.min_dist()
 						
-						# t = rospy.get_time() - t_init
-						# rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-						# Tbug.follow_target(rx, ry)
 
 						while(do_min > obst_detec and not (d_f_n > d_f)):
-							# print "\nd_f_n:", d_f_n, "| d_f:", d_f
-							# print("Going for the best obstacle avoidance")
-							# d_f_n, go_end_p = Tbug.best_obstacle(endp)
-							# d_f = d_f_n
-							# go_end = go_end_p
-							# dummy_d2 = go_end - np.array([Tbug.robot_pos[0],Tbug.robot_pos[1]])
-							# dummy_angle = atan2(dummy_d2[1], dummy_d2[0])
-							# dummy_d2 = sqrt(np.sum(dummy_d2**2))
 							do_min, idx_do_min = Tbug.min_dist()
 							t = rospy.get_time() - t_init
 							rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-							# rx, ry = go_end[0], go_end[1]
-							# print(rx, ry)
 							Tbug.follow_target(rx, ry)
 
 					else:
@@ -323,12 +246,6 @@ def follow():
 						while(True):
 							print("Following the Wall")
 							d, alfa = Tbug.min_dist()
-
-							# U_a = Tbug.pot_att()
-							# U_r = Tbug.pot_rep(d, alfa)
-							# Ux = U_a[0] + U_r[0]
-							# Uy = U_a[1] + U_r[1]
-							# Tbug.contourn_obst(Ux, Uy)
 
 							Tbug.contourn_obst(d, alfa, obst_detec)
 

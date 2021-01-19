@@ -148,7 +148,6 @@ class control:
 
 
 
-
 ##    Rotina callback para a obtencao da pose do robo
 def callback_pose(data):
     global x_n, y_n, theta_n
@@ -165,12 +164,6 @@ def callback_pose(data):
     theta_n = euler[2]  # orientacao do robo no mundo 
             
     return
-
-
-def neighbors(a, radius, rowNumber, columnNumber):
-     return [[a[i][j] if  i >= 0 and i < len(a) and j >= 0 and j < len(a[0]) else 0
-                for j in range(columnNumber-1-radius, columnNumber+radius)]
-                    for i in range(rowNumber-1-radius, rowNumber+radius)]
 
 
 
