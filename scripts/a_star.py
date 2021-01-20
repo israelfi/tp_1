@@ -70,7 +70,7 @@ def Astar(maze, start, target):
         # Generate children
         children = []
         # for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]: # Adjacent squares
-        safity = 2
+        safity = 1
         for new_position in [(0, -safity), (0, safity), (-safity, 0), (safity, 0), (-safity, -safity), (-safity, safity), (safity, -safity), (safity, safity)]: # Adjacent squares
 
             # Get node position
@@ -79,6 +79,7 @@ def Astar(maze, start, target):
             # Make sure within range
             if node_position[0] > (len(maze) - 1) or node_position[0] < 0 or node_position[1] > (len(maze[len(maze)-1]) -1) or node_position[1] < 0:
                 continue
+
 
             # Make sure walkable terrain
             if maze[node_position[0]][node_position[1]] != 0:
@@ -119,24 +120,30 @@ def Astar(maze, start, target):
 class control:
     def __init__(self):
         self.d = 0.2
-        self.k = 1
+        self.k = 5
 
+    def control_(self,pos_curve, pos_robot, theta):
 
-    def pot_att(self,x,y,px,py):
-        D = math.sqrt((px-x)**2 + (py-y)**2)
-        K = 2
-        D_safe = 10
+        Ux = self.k * (pos_curve[0] - pos_robot[0])
+        Uy = self.k * (pos_curve[1] - pos_robot[1])
 
-        if(D > D_safe):
-            Ux = - D_safe*K*(x - px)/D
-            Uy = - D_safe*K*(y - py)/D
-            U_a = [Ux, Uy]
-        else:
-            Ux = - K*(x - px)
-            Uy = - K*(y - py)
-            U_a = [Ux, Uy]
+        return self.feedback_linearization(Ux,Uy,theta)
 
-        return U_a
+    # def pot_att(self,x,y,px,py):
+    #     D = math.sqrt((px-x)**2 + (py-y)**2)
+    #     K = 2
+    #     D_safe = 10
+
+    #     if(D > D_safe):
+    #         Ux = - D_safe*K*(x - px)/D
+    #         Uy = - D_safe*K*(y - py)/D
+    #         U_a = [Ux, Uy]
+    #     else:
+    #         Ux = - K*(x - px)
+    #         Uy = - K*(y - py)
+    #         U_a = [Ux, Uy]
+
+    #     return U_a
 
     def feedback_linearization(self,Ux, Uy, theta_n):
 
@@ -173,7 +180,7 @@ def planning():
     ## Create a grid from image mape
     rospack = rospkg.RosPack()
     path = rospack.get_path('tp_1')
-    image_path = path + '/worlds/map2.bmp'
+    image_path = path + '/worlds/map_obstacle2.bmp'
     image = img.imread(image_path)
     image.setflags(write=1)
 
@@ -244,7 +251,7 @@ def planning():
         y_start = y_n
         x_target = px
         y_target = py
-        start = (int(round((y_start*resolution_map)+y_desloc)), int(round((x_start*resolution_map)+x_desloc)))
+        start = (int(round((-y_start*resolution_map)+y_desloc)), int(round((x_start*resolution_map)+x_desloc)))
         target = (int(round((-y_target*resolution_map)+y_desloc)), int(round((x_target*resolution_map)+x_desloc)))
 
         print(target)
@@ -284,14 +291,16 @@ def planning():
             for i in range(len(t_x)):
                 t_init = rospy.get_time()
                 D = 1000
-                while(D > 0.05 and not rospy.is_shutdown()):
+                while(D > 0.1 and not rospy.is_shutdown()):
                     D = math.sqrt((t_y[i]-y_n)**2+(t_x[i]-x_n)**2)
                     t = rospy.get_time() - t_init
                     # dx,dy = controlador.find_curve(x_n, y_n, t_x, t_y, t)
                     print("Robot Pos = [%f, %f]\n Target Pos = [%f, %f]\n Distancy = %f\n\n" % (x_n,y_n,t_x[i],t_y[i],D))
-                    U_a = []
-                    U_a = controlador.pot_att(x_n,y_n,t_x[i],t_y[i])
-                    vel_msg.linear.x, vel_msg.angular.z = controlador.feedback_linearization(U_a[0],U_a[1],theta_n)
+                    # U_a = []
+                    # U_a = controlador.pot_att(x_n,y_n,t_x[i],t_y[i])
+                    # vel_msg.linear.x, vel_msg.angular.z = controlador.feedback_linearization(U_a[0],U_a[1],theta_n)
+
+                    vel_msg.linear.x, vel_msg.angular.z = controlador.control_([t_x[i],t_y[i]],[x_n,y_n], theta_n)
                     pub_cmd_vel.publish(vel_msg)
 
             
