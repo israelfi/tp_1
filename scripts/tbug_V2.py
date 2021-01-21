@@ -137,6 +137,8 @@ class control:
 		Ux = self.k * (pos_curve[0] - pos_robot[0])
 		Uy = self.k * (pos_curve[1] - pos_robot[1])
 
+		# print(Ux)
+
 		return self.feedback_linearization(Ux,Uy,theta)
 
 
@@ -213,9 +215,9 @@ def follow():
 			t_init = rospy.get_time()	
 			if( (do[int(floor(theta_q_idx))] >= min([Tbug.l_max, dq])) and (do[int(ceil(theta_q_idx))+1] >= min([Tbug.l_max, dq])) and (do_min > obst_detec)):
 				print("Going to the Taget\n")
-				t = rospy.get_time() - t_init
-				rx, ry = Tbug.find_curve(px,py,t)
-				Tbug.follow_target(rx, ry)
+				# t = rospy.get_time() - t_init
+				# rx, ry = Tbug.find_curve(px,py,t)
+				Tbug.follow_target(px, py)
 
 				if (Tbug.distancy() < delta):
 					print("Target Founded!\n")
@@ -245,9 +247,9 @@ def follow():
 						t_init = rospy.get_time()
 						while(do_min > obst_detec and not (d_f_n > d_f)):
 							do_min, idx_do_min = Tbug.min_dist()
-							t = rospy.get_time() - t_init
-							rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
-							Tbug.follow_target(rx, ry)
+							# t = rospy.get_time() - t_init
+							# rx, ry = Tbug.find_curve(go_end[0],go_end[1],t)
+							Tbug.follow_target(go_end[0], go_end[1])
 
 					else:
 						d_re = d_f
