@@ -115,6 +115,8 @@ class bug:
 	def contourn_obst(self, s, alfa, obst_detec):
 		
 		K = 1.0
+		ang = np.mod(self.robot_ori,2*np.pi)
+		print(ang)
 		Ux_ = (2.0/pi)*atan(K*(s- obst_detec))
 		Uy_ = sqrt(1.0-Ux_**2)
 
