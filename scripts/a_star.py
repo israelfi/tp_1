@@ -12,7 +12,7 @@ from PIL import Image
 import math
 
 
-## A class for the Nodes in the Grid
+## class for the Nodes in the Grid
 class Node():
     def __init__(self, parent=None, position=None):
         self.parent = parent
@@ -69,9 +69,7 @@ def Astar(maze, start, target):
 
         # Generate children
         children = []
-        # for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]: # Adjacent squares
-        safity = 2
-        for new_position in [(0, -safity), (0, safity), (-safity, 0), (safity, 0), (-safity, -safity), (-safity, safity), (safity, -safity), (safity, safity)]: # Adjacent squares
+        for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]: # Adjacent squares
 
             # Get node position
             node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
@@ -79,6 +77,7 @@ def Astar(maze, start, target):
             # Make sure within range
             if node_position[0] > (len(maze) - 1) or node_position[0] < 0 or node_position[1] > (len(maze[len(maze)-1]) -1) or node_position[1] < 0:
                 continue
+
 
             # Make sure walkable terrain
             if maze[node_position[0]][node_position[1]] != 0:
@@ -119,24 +118,14 @@ def Astar(maze, start, target):
 class control:
     def __init__(self):
         self.d = 0.2
-        self.k = 1
+        self.k = 5
 
+    def control_(self,pos_curve, pos_robot, theta):
 
-    def pot_att(self,x,y,px,py):
-        D = math.sqrt((px-x)**2 + (py-y)**2)
-        K = 2
-        D_safe = 10
+        Ux = self.k * (pos_curve[0] - pos_robot[0])
+        Uy = self.k * (pos_curve[1] - pos_robot[1])
 
-        if(D > D_safe):
-            Ux = - D_safe*K*(x - px)/D
-            Uy = - D_safe*K*(y - py)/D
-            U_a = [Ux, Uy]
-        else:
-            Ux = - K*(x - px)
-            Uy = - K*(y - py)
-            U_a = [Ux, Uy]
-
-        return U_a
+        return self.feedback_linearization(Ux,Uy,theta)
 
     def feedback_linearization(self,Ux, Uy, theta_n):
 
@@ -173,11 +162,10 @@ def planning():
     ## Create a grid from image mape
     rospack = rospkg.RosPack()
     path = rospack.get_path('tp_1')
-    image_path = path + '/worlds/map2.bmp'
+    image_path = path + '/worlds/map_obstacle2.bmp'
     image = img.imread(image_path)
     image.setflags(write=1)
 
-    # white = np.ones((100, 100), dtype=np.float)
 
     r_color = [255, 0, 0]
     g_color = [0, 255, 0]
@@ -192,25 +180,19 @@ def planning():
     for i in range(len(image)):
         for j in range(len(image)):
             if(image[i,j,0] == 255 and image[i,j,1] == 255 and image[i,j,2] == 255):
-                # white[i,j]= 1
                 M[i,j] = 0
             else:
-                # white[i,j] = 0
                 M[i,j] = 1
                
-
-    # plt.imshow(M, cmap='gray',vmin=0,vmax=1)
-    # plt.show()
-
 
 
     ## ROS STUFFS
     rospy.init_node("a_star", anonymous=True)
 
-    # Topico onde sera publicada a velocidade do robo
+    # Topic to pub robo reference velocity
     pub_cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
 
-    # Topico contendo a pose do robo
+    # Topic of robot pose
     rospy.Subscriber('/base_pose_ground_truth', Odometry, callback_pose)
 
     vel_msg = Twist()
@@ -236,7 +218,7 @@ def planning():
         px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa -48x48): ').split()
         px, py = [float(i) for i in [px, py]]
 
-        resolution_map = 1     # cada 1 pixel, equivale a 1 m
+        resolution_map = 1     # each 1 pixel, is equal to 1 m
         x_desloc = 50
         y_desloc = 50
 
@@ -244,7 +226,7 @@ def planning():
         y_start = y_n
         x_target = px
         y_target = py
-        start = (int(round((y_start*resolution_map)+y_desloc)), int(round((x_start*resolution_map)+x_desloc)))
+        start = (int(round((-y_start*resolution_map)+y_desloc)), int(round((x_start*resolution_map)+x_desloc)))
         target = (int(round((-y_target*resolution_map)+y_desloc)), int(round((x_target*resolution_map)+x_desloc)))
 
         print(target)
@@ -284,14 +266,13 @@ def planning():
             for i in range(len(t_x)):
                 t_init = rospy.get_time()
                 D = 1000
-                while(D > 0.05 and not rospy.is_shutdown()):
+                while(D > 0.1 and not rospy.is_shutdown()):
                     D = math.sqrt((t_y[i]-y_n)**2+(t_x[i]-x_n)**2)
                     t = rospy.get_time() - t_init
-                    # dx,dy = controlador.find_curve(x_n, y_n, t_x, t_y, t)
+
                     print("Robot Pos = [%f, %f]\n Target Pos = [%f, %f]\n Distancy = %f\n\n" % (x_n,y_n,t_x[i],t_y[i],D))
-                    U_a = []
-                    U_a = controlador.pot_att(x_n,y_n,t_x[i],t_y[i])
-                    vel_msg.linear.x, vel_msg.angular.z = controlador.feedback_linearization(U_a[0],U_a[1],theta_n)
+
+                    vel_msg.linear.x, vel_msg.angular.z = controlador.control_([t_x[i],t_y[i]],[x_n,y_n], theta_n)
                     pub_cmd_vel.publish(vel_msg)
 
             

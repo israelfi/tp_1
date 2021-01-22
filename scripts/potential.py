@@ -158,7 +158,7 @@ def controller():
 
     rospy.sleep(0.2)
 
-    px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, considere o tamanho do mapa 30x30): ').split()
+    px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, observe o tamanho do mapa): ').split()
     px, py = [float(i) for i in [px, py]]
 
 
@@ -185,7 +185,7 @@ def controller():
 
             if( (sqrt((px-x_n)**2 + (py-y_n)**2)) < 0.2 ):
                 print("Alvo alcancado!\n")
-                px, py, = raw_input('Insira o valor do proximo destino em x e y (valores separados por espaco, considere o tamanho do mapa 30x30): ').split()
+                px, py, = raw_input('Insira o valor do destino em x e y (valores separados por espaco, observe o tamanho do mapa): ').split()
                 px, py = [float(i) for i in [px, py]]
 
 
