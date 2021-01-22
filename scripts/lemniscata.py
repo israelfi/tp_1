@@ -34,22 +34,12 @@ def parametric_curve():
     global t
     global rx, ry, cx, cy
 
-    w = 2.0*pi*0.022 * (rx + ry) / (rx * ry) * 2.
+    w = 1.0*pi*0.022 * (rx + ry) / (rx * ry) * 2.
     r = 5
     pos = [0, 0]
     vel = [0, 0]
 
     """
-    # Elipse
-    # pos[0] = 2 * cos(w * t) + 4
-    # pos[1] = 3 * sin(w * t) + 5
-
-    # vel[0] = - 4 * w * sin(w * t)
-    # vel[1] = 5 * w * cos(w * t)
-
-    # ----
-
-    # Lemniscate of Bernoulli
     # pos[0] = r * cos(w*t) / (1 + sin(w*t) ** 2)
     # pos[1] = r * sin(w*t) * cos(w*t) / (1 + sin(w*t) ** 2)
 
@@ -57,13 +47,12 @@ def parametric_curve():
     # vel[1] = (r * (sin(w*t) ** 4 + sin(w*t) ** 2 + (sin(w*t) ** 2 - 1) * cos(w*t) ** 2) ) / ((1 + sin(w*t) ** 2) ** 2)
 
     """
-    
-    # Lemniscate of Gerono
+
     pos[0] = rx * cos(w*t) + cx
     pos[1] = ry * sin(2*w*t) - cy
 
     vel[0] = - rx * w * sin(w*t)
-    vel[1] = ry * w * sin(2*w*t)
+    vel[1] = ry * w * cos(2*w*t)
 
     # print "Curve: ", round(pos[0], 2), round(pos[1], 2), '\t', round(vel[0], 2), round(vel[1], 2)
 
